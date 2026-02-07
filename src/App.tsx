@@ -13,7 +13,7 @@ const ERROR_HIDE_DELAY = 3000;
 
 export const App: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [, setIsLoading] = useState(false);
 
   const [filter, setFilter] = useState<FilterStatus>('all');
 
@@ -65,6 +65,21 @@ export const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const activeCount = useMemo(
+    () => todos.filter(t => !t.completed).length,
+    [todos],
+  );
+
+  const completedCount = useMemo(
+    () => todos.filter(t => t.completed).length,
+    [todos],
+  );
+
+  const isAllCompleted = useMemo(
+    () => todos.length > 0 && todos.every(t => t.completed),
+    [todos],
+  );
+
   const filteredTodos = useMemo(() => {
     switch (filter) {
       case 'active':
@@ -76,22 +91,15 @@ export const App: React.FC = () => {
     }
   }, [todos, filter]);
 
-  const handleFilterAll = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    setFilter('all');
-  };
+  const createFilterHandler =
+    (status: FilterStatus) => (event: React.MouseEvent<HTMLAnchorElement>) => {
+      event.preventDefault();
+      setFilter(status);
+    };
 
-  const handleFilterActive = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    setFilter('active');
-  };
-
-  const handleFilterCompleted = (
-    event: React.MouseEvent<HTMLAnchorElement>,
-  ) => {
-    event.preventDefault();
-    setFilter('completed');
-  };
+  const handleFilterAll = createFilterHandler('all');
+  const handleFilterActive = createFilterHandler('active');
+  const handleFilterCompleted = createFilterHandler('completed');
 
   const handleHideError = () => {
     hideError();
@@ -110,7 +118,9 @@ export const App: React.FC = () => {
           {/* this button should have `active` class only if all todos are completed */}
           <button
             type="button"
-            className="todoapp__toggle-all"
+            className={classNames('todoapp__toggle-all', {
+              active: isAllCompleted,
+            })}
             data-cy="ToggleAllButton"
           />
 
@@ -127,7 +137,7 @@ export const App: React.FC = () => {
 
         <section
           className={classNames('todoapp__main', {
-            hidden: isLoading || todos.length === 0,
+            hidden: todos.length === 0,
           })}
           data-cy="TodoList"
         >
@@ -173,9 +183,10 @@ export const App: React.FC = () => {
         {todos.length > 0 && (
           <footer className="todoapp__footer" data-cy="Footer">
             <span className="todo-count" data-cy="TodosCounter">
-              {`${todos.filter(t => !t.completed).length} items left`}
+              {`${activeCount} item${activeCount === 1 ? '' : 's'} left`}
             </span>
 
+            {/* Active link should have the 'selected' class */}
             <nav className="filter" data-cy="Filter">
               <a
                 href="#/"
@@ -211,11 +222,12 @@ export const App: React.FC = () => {
               </a>
             </nav>
 
+            {/* this button should be disabled if there are no completed todos */}
             <button
               type="button"
               className="todoapp__clear-completed"
               data-cy="ClearCompletedButton"
-              disabled={todos.every(t => !t.completed)}
+              disabled={completedCount === 0}
             >
               Clear completed
             </button>
