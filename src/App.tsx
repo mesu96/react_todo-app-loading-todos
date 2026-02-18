@@ -13,7 +13,6 @@ const ERROR_HIDE_DELAY = 3000;
 
 export const App: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [, setIsLoading] = useState(false);
 
   const [filter, setFilter] = useState<FilterStatus>('all');
 
@@ -48,16 +47,13 @@ export const App: React.FC = () => {
     }
 
     hideError();
-    setIsLoading(true);
 
     getTodos()
       .then(setTodos)
       .catch(() => {
         showError('Unable to load todos');
       })
-      .finally(() => {
-        setIsLoading(false);
-      });
+      .finally(() => {});
 
     return () => {
       clearErrorTimeout();
