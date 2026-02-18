@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/label-has-associated-control */
 /* eslint-disable jsx-a11y/control-has-associated-label */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import classNames from 'classnames';
 
 import { UserWarning } from './UserWarning';
@@ -13,68 +13,58 @@ const ERROR_HIDE_DELAY = 3000;
 
 export const App: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
-
   const [filter, setFilter] = useState<FilterStatus>('all');
-
   const [error, setError] = useState<string | null>(null);
-  const hideErrorTimeoutId = useRef<number | null>(null);
 
-  const clearErrorTimeout = () => {
-    if (hideErrorTimeoutId.current !== null) {
-      window.clearTimeout(hideErrorTimeoutId.current);
-      hideErrorTimeoutId.current = null;
-    }
-  };
-
-  const hideError = () => {
-    clearErrorTimeout();
-    setError(null);
-  };
-
-  const showError = (message: string) => {
-    clearErrorTimeout();
-    setError(message);
-
-    hideErrorTimeoutId.current = window.setTimeout(() => {
-      setError(null);
-      hideErrorTimeoutId.current = null;
-    }, ERROR_HIDE_DELAY);
-  };
-
+  // Load todos on mount
   useEffect(() => {
     if (!USER_ID) {
       return;
     }
 
-    hideError();
+    // hide error before request
+    setError(null);
 
     getTodos()
       .then(setTodos)
       .catch(() => {
-        showError('Unable to load todos');
-      })
-      .finally(() => {});
-
-    return () => {
-      clearErrorTimeout();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        setError('Unable to load todos');
+      });
   }, []);
 
-  const activeCount = useMemo(
-    () => todos.filter(t => !t.completed).length,
-    [todos],
-  );
+  // Auto-hide error after delay
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
 
-  const completedCount = useMemo(
-    () => todos.filter(t => t.completed).length,
-    [todos],
-  );
+    const timeoutId = window.setTimeout(() => {
+      setError(null);
+    }, ERROR_HIDE_DELAY);
 
-  const isAllCompleted = useMemo(
-    () => todos.length > 0 && todos.every(t => t.completed),
-    [todos],
-  );
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [error]);
+
+  // Calculate counters in one loop
+  const { activeCount, completedCount, isAllCompleted } = useMemo(() => {
+    let completed = 0;
+
+    for (const todo of todos) {
+      if (todo.completed) {
+        completed += 1;
+      }
+    }
+
+    const active = todos.length - completed;
+
+    return {
+      activeCount: active,
+      completedCount: completed,
+      isAllCompleted: todos.length > 0 && active === 0,
+    };
+  }, [todos]);
 
   const filteredTodos = useMemo(() => {
     switch (filter) {
@@ -87,18 +77,22 @@ export const App: React.FC = () => {
     }
   }, [todos, filter]);
 
-  const createFilterHandler =
-    (status: FilterStatus) => (event: React.MouseEvent<HTMLAnchorElement>) => {
-      event.preventDefault();
-      setFilter(status);
-    };
+  const handleFilterClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
 
-  const handleFilterAll = createFilterHandler('all');
-  const handleFilterActive = createFilterHandler('active');
-  const handleFilterCompleted = createFilterHandler('completed');
+    const { filter: nextFilter } = event.currentTarget.dataset;
+
+    if (
+      nextFilter === 'all' ||
+      nextFilter === 'active' ||
+      nextFilter === 'completed'
+    ) {
+      setFilter(nextFilter);
+    }
+  };
 
   const handleHideError = () => {
-    hideError();
+    setError(null);
   };
 
   if (!USER_ID) {
@@ -190,7 +184,8 @@ export const App: React.FC = () => {
                   selected: filter === 'all',
                 })}
                 data-cy="FilterLinkAll"
-                onClick={handleFilterAll}
+                data-filter="all"
+                onClick={handleFilterClick}
               >
                 All
               </a>
@@ -201,7 +196,8 @@ export const App: React.FC = () => {
                   selected: filter === 'active',
                 })}
                 data-cy="FilterLinkActive"
-                onClick={handleFilterActive}
+                data-filter="active"
+                onClick={handleFilterClick}
               >
                 Active
               </a>
@@ -212,7 +208,8 @@ export const App: React.FC = () => {
                   selected: filter === 'completed',
                 })}
                 data-cy="FilterLinkCompleted"
-                onClick={handleFilterCompleted}
+                data-filter="completed"
+                onClick={handleFilterClick}
               >
                 Completed
               </a>
